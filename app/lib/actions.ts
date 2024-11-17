@@ -5,7 +5,7 @@ import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Recipe } from "./definitions";
+import { API_URL, Recipe } from "./definitions";
 
 const FormSchema = z.object({
   id: z.string(),
@@ -43,20 +43,22 @@ export async function updateUserRecipe(
   }
   const { status, rating } = validatedFields.data;
   console.debug(
-    "Got status: ",
-    status,
-    " and rating: ",
-    rating,
-    " for Recipe ID: ",
-    recipe.id,
+    `Got status: ${status} and rating: ${rating} for Recipe ID: ${recipe._id}`,
   );
-  const update = await fetch(`${API_URL}/api/recipes/user/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ status, rating }),
-  });
+
+  try {
+    const update = await fetch(`${API_URL}/api/recipes/user/${recipe._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status, rating }),
+    });
+    console.info("Updated Recipe: ", await update.json());
+  } catch (error) {
+    console.error("Server Error", error);
+    throw new Error(`Failed to Update recipe: ${recipe._id}`);
+  }
 
   revalidatePath("/dashboard/recipes");
   redirect("/dashboard/recipes");
