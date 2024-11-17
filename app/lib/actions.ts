@@ -54,10 +54,11 @@ export async function updateUserRecipe(
       },
       body: JSON.stringify({ status, rating }),
     });
-    console.info("Updated Recipe: ", await update.json());
+    console.debug("Updated Recipe: ", await update.json());
   } catch (error) {
-    console.error("Server Error", error);
-    throw new Error(`Failed to Update recipe: ${recipe._id}`);
+    return {
+      message: `Server Error: Failed to Update Recipe: ${recipe._id}`,
+    };
   }
 
   revalidatePath("/dashboard/recipes");

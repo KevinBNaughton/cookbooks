@@ -1,6 +1,6 @@
 import { Cookbook, API_URL, Recipe, UserRecipe } from "@/app/lib/definitions";
 
-export async function fetchCookbooks() {
+export async function fetchCookbooks(): Promise<Cookbook[]> {
   try {
     const data = await fetch(API_URL + "api/cookbooks");
     let cookbooks = await data.json();

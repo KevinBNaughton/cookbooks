@@ -2,6 +2,7 @@ import Form from '@/app/ui/recipes/edit-form';
 import Breadcrumbs from '@/app/ui/recipes/breadcrumbs';
 import { fetchRecipeById, fetchCookbooks, fetchUserRecipeById } from '@/app/lib/data';
 import { auth } from "@/auth"
+import { notFound } from 'next/navigation';
 
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
@@ -13,6 +14,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 		fetchCookbooks(),
 		fetchUserRecipeById(id, session?.accessToken),
 	]);
+	if (!recipe || !user_recipe) {
+		notFound();
+	}
 	return (
 		<main>
 			<Breadcrumbs

@@ -1,16 +1,11 @@
-import { fetchCookbooks } from '@/app/lib/data';
-import { Cookbook } from '@/app/lib/definitions';
-import Randomizer from '@/app/ui/randomizer';
 import { Suspense } from 'react';
 import { SessionProvider } from 'next-auth/react';
+import { fetchCookbooksAsMap } from '@/app/lib/data';
+import Randomizer from '@/app/ui/randomizer';
 
 
 export default async function Page() {
-    const cookbooks = await fetchCookbooks();
-    let cookbooks_map: { [key: string]: Cookbook; } = {};
-    for (var cookbook of cookbooks) {
-        cookbooks_map[cookbook.key] = cookbook;
-    };
+    const cookbooks_map = await fetchCookbooksAsMap();
     return (
         <SessionProvider>
             <div>

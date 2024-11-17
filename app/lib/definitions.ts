@@ -1,4 +1,6 @@
-export const API_URL = "http://127.0.0.1:5000/";
+// Set in top level .env file
+// Likely set to: "http://127.0.0.1:PORT/"
+export const API_URL = process.env.BACKEND_URL;
 
 export type User = {
   id: string;

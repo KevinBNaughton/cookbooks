@@ -1,7 +1,8 @@
 import Breadcrumbs from '@/app/ui/recipes/breadcrumbs';
 import { fetchCookbooksAsMap, fetchRecipeById, fetchUserRecipeById } from '@/app/lib/data';
-import { auth } from '@/auth'
 import UserRecipeView from '@/app/ui/recipes/user-recipe';
+import { auth } from '@/auth'
+import { notFound } from 'next/navigation';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
 	const params = await props.params;
@@ -12,6 +13,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 		fetchCookbooksAsMap(),
 		fetchUserRecipeById(id, session?.accessToken),
 	]);
+	if (!recipe || !user_recipe) {
+		notFound();
+	}
 
 	return (
 		<main>
