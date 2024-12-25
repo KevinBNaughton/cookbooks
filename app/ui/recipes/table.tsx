@@ -1,15 +1,32 @@
-import { UpdateRecipe, DeleteRecipe, ViewRecipe } from '@/app/ui/recipes/buttons';
-import { fetchFilteredRecipes } from '@/app/lib/data';
-import { Recipe } from '@/app/lib/definitions';
+import {
+  UpdateRecipe,
+  DeleteRecipe,
+  ViewRecipe,
+} from "@/app/ui/recipes/buttons";
+import { fetchFilteredRecipes } from "@/app/lib/data";
+import { Recipe } from "@/app/lib/definitions";
+import RecipeStatus from "./status";
+import { APIAuthError } from "@/app/lib/errors";
 
 export default async function RecipesTable({
   query,
   currentPage,
+  status,
 }: {
   query: string;
   currentPage: number;
+  status: "" | "cooked!" | "uncooked";
 }) {
-  const recipes: Recipe[] = await fetchFilteredRecipes(query, currentPage);
+  let recipes: Recipe[] = [];
+  try {
+    recipes = await fetchFilteredRecipes(query, status, currentPage);
+  } catch (error) {
+    if (error instanceof APIAuthError) {
+      console.error("You should log out");
+      // TODO - make this work?
+      // await signOut();
+    }
+  }
 
   return (
     <div className="mt-6 flow-root">
@@ -21,17 +38,22 @@ export default async function RecipesTable({
                 key={recipe._id}
                 className="mb-2 w-full rounded-md bg-white p-4"
               >
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div>
-                    <div className="mb-2 flex items-center">
+                <div className="flex flex-col items-center justify-between border-b pb-4">
+                  <div className="w-full">
+                    <div className="mb-2 justify-center items-center">
                       <p>{recipe.name_of_dish}</p>
                     </div>
-                    <p className="text-sm text-gray-500">{recipe.page_number}</p>
+                    <p className="text-sm text-gray-500">
+                      Page Number: {recipe.page_number}
+                    </p>
                   </div>
-                  {/*<RecipeStatus status={recipe.status} /> */}
                 </div>
                 <div className="flex w-full items-center justify-between pt-4">
+                  <RecipeStatus
+                    status={recipe.user_recipe?.status || "uncooked"}
+                  />
                   <div className="flex justify-end gap-2">
+                    <ViewRecipe id={recipe._id} />
                     <UpdateRecipe id={recipe._id} />
                     <DeleteRecipe id={recipe._id} />
                   </div>
@@ -71,7 +93,7 @@ export default async function RecipesTable({
                     {recipe.page_number}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
-                    {/* <RecipeStatus status={user_recipe.status} /> */}
+                    <RecipeStatus status={"uncooked"} />
                   </td>
                   <td className="whitespace-nowrap py-3 pl-6 pr-3">
                     <div className="flex justify-end gap-3">

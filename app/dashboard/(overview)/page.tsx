@@ -1,8 +1,8 @@
-import { lusitana } from '@/app/ui/fonts';
-import { Suspense } from 'react';
-import { OverviewSkeleton, CardsSkeleton } from '@/app/ui/skeletons';
-import CookbookList from '@/app/ui/dashboard/cookbooks-list';
-import CardWrapper from '@/app/ui/dashboard/cards';
+import { lusitana } from "@/app/ui/fonts";
+import { Suspense } from "react";
+import { OverviewSkeleton, CardsSkeleton } from "@/app/ui/skeletons";
+import CookbookList from "@/app/ui/dashboard/cookbooks-list";
+import CardWrapper from "@/app/ui/dashboard/cards";
 
 export default async function Page() {
   return (

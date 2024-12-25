@@ -46,23 +46,17 @@ export type Recipe = {
   ingredients: IngredientList;
   instructions: InstructionStep[];
   note: string;
+  user_recipe?: UserRecipe;
 };
 
 export type UserRecipe = {
-  _id: string;
   cookbook_key: string;
   recipe_id: string;
-  user_id: string;
   status: "uncooked" | "cooked!";
-  rating: number;
+  rating?: number;
+  created_at: Date;
   updated_at: Date;
-  note: string;
-};
-
-// TODO - Debate if this should be used
-export type RecipeWithUserRecipe = {
-  user_recipe: UserRecipe;
-  recipe: Recipe;
+  note?: string;
 };
 
 export type CookbookField = {

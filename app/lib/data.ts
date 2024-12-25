@@ -1,4 +1,17 @@
+"use server";
 import { Cookbook, API_URL, Recipe, UserRecipe } from "@/app/lib/definitions";
+import { auth } from "@/auth";
+import { APIAuthError } from "./errors";
+
+export async function buildAuthorizationHeaders(
+  headers: { [key: string]: string } = {},
+): Promise<HeadersInit> {
+  const session = await auth();
+  if (session?.accessToken) {
+    headers["Authorization"] = `Bearer ${session?.accessToken}`;
+  }
+  return headers;
+}
 
 export async function fetchCookbooks(): Promise<Cookbook[]> {
   try {
@@ -35,12 +48,10 @@ export async function fetchRecipesForCookbook(cookbook: Cookbook) {
   }
 }
 
-export async function fetchNRecipes(count: number, token: undefined | string) {
+export async function fetchNRecipes(count: number) {
   try {
     const data = await fetch(API_URL + "api/recipes/random/" + count, {
-      headers: {
-        Authorization: "Bearer " + token,
-      },
+      headers: await buildAuthorizationHeaders(),
     });
     let recipes = await data.json();
     // console.debug("Number of recipes: ", recipes.length);
@@ -86,6 +97,7 @@ export async function fetchCardData() {
 const ITEMS_PER_PAGE = 30;
 export async function fetchFilteredRecipes(
   query: string,
+  status: "" | "cooked!" | "uncooked",
   currentPage: number,
 ): Promise<Recipe[]> {
   // const offset = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -94,15 +106,31 @@ export async function fetchFilteredRecipes(
   // cookbook.key +
   try {
     let url = API_URL + "api/recipes";
+    let url_params = new URLSearchParams();
     if (query.length > 0) {
-      url += "/search" + "?query=" + query;
+      url_params.set("query", query);
     }
-    const data = await fetch(url);
+    if (status.length > 0) {
+      url_params.set("status", status);
+    }
+    if (url_params.size > 0) {
+      url += "?";
+      url += url_params.toString();
+    }
+    const data = await fetch(url, {
+      headers: await buildAuthorizationHeaders(),
+    });
+    if (data.status == 401) {
+      throw new APIAuthError(`Authorization Error: ${data.statusText}`);
+    }
     let recipes = await data.json();
     // console.debug("Recipes: ", recipes.recipes);
     return recipes.recipes;
   } catch (error) {
     console.error("API Error:", error);
+    if (error instanceof APIAuthError) {
+      throw error;
+    }
     throw new Error("Failed to fetch filtered recipes.");
   }
 }
@@ -110,8 +138,13 @@ export async function fetchFilteredRecipes(
 export async function fetchRecipesPages(query: string): Promise<number> {
   try {
     let url = API_URL + "api/recipes/count";
+    let url_params = new URLSearchParams();
     if (query.length > 0) {
-      url += "/search" + "?query=" + query;
+      url_params.set("query", query);
+    }
+    if (url_params.size > 0) {
+      url += "?";
+      url += url_params.toString();
     }
     const data = await fetch(url);
     let count = await data.json();
@@ -135,16 +168,10 @@ export async function fetchRecipeById(id: string): Promise<Recipe> {
   }
 }
 
-export async function fetchUserRecipeById(
-  id: string,
-  token: undefined | string,
-): Promise<UserRecipe> {
+export async function fetchUserRecipeById(id: string): Promise<UserRecipe> {
   try {
     const data = await fetch(`${API_URL}/api/recipes/user/${id}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: await buildAuthorizationHeaders(),
     });
     let user_recipe = await data.json();
     return user_recipe;

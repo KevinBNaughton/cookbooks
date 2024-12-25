@@ -1,16 +1,18 @@
-from flask import Flask, Response, g
-from bson import json_util
-from typing import Any
-from pymongo import MongoClient
-import api.cookbooks.views as cookbooks_view
-import api.recipes.views as recipes_view
-import api.recipes.user.views as user_recipes_view
-import api.users.views as users_view
 import os
+from typing import Any
+
+from bson import json_util
 from dotenv import load_dotenv
-from flask_pymongo import PyMongo
+from flask import Flask, Response, g
 from flask_cors import CORS, cross_origin
 from flask_jwt_extended import JWTManager
+from flask_pymongo import PyMongo
+from pymongo import MongoClient
+
+import api.cookbooks.views as cookbooks_view
+import api.recipes.user.views as user_recipes_view
+import api.recipes.views as recipes_view
+import api.users.views as users_view
 
 load_dotenv()
 
@@ -42,11 +44,6 @@ init_mongodb_client(app)
 
 # Users and login
 app.add_url_rule(
-    "/api/users/<string:email>",
-    view_func=users_view.get_user,
-    methods=["GET"],
-)
-app.add_url_rule(
     "/api/login",
     view_func=users_view.login,
     methods=["POST"],
@@ -59,6 +56,16 @@ app.add_url_rule(
 app.add_url_rule(
     "/api/users/protected",
     view_func=users_view.protected,
+    methods=["GET"],
+)
+app.add_url_rule(
+    "/api/users/token",
+    view_func=users_view.check_token,
+    methods=["GET"],
+)
+app.add_url_rule(
+    "/api/users/<string:email>",
+    view_func=users_view.get_user,
     methods=["GET"],
 )
 app.add_url_rule(
@@ -101,11 +108,6 @@ app.add_url_rule(
     methods=["GET"],
 )
 app.add_url_rule(
-    "/api/recipes/count/search",
-    view_func=recipes_view.search_recipes_count,
-    methods=["GET"],
-)
-app.add_url_rule(
     "/api/recipes/recipe/<string:_id>",
     view_func=recipes_view.get_recipe,
     methods=["GET"],
@@ -114,11 +116,6 @@ app.add_url_rule(
     "/api/recipes/recipe/<string:_id>",
     view_func=recipes_view.update_recipe,
     methods=["PUT"],
-)
-app.add_url_rule(
-    "/api/recipes/search",
-    view_func=recipes_view.search_recipes,
-    methods=["GET"],
 )
 app.add_url_rule(
     "/api/recipes/recipe/<string:_id>",

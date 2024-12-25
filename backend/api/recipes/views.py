@@ -2,39 +2,23 @@
 api/recipes - A small API for managing recipes.
 """
 
-from .model import Recipe
-
 from datetime import datetime
+
 from bson import ObjectId
-from flask import abort
-from flask import current_app
-from flask import request
-from flask import url_for
-from flask import jsonify
-from flask import current_app
+from flask import abort, current_app, jsonify, request, url_for
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_pymongo import PyMongo
 from pymongo.collection import ReturnDocument
-from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from api.recipes.model import Recipe
+from api.users.model import UserRecipe
 
 
 # @app.route("/recipes/count")
 def recipes_count():
-    """GET the total count of all recipes."""
-    with current_app.app_context():
-        mongo = PyMongo(current_app)
-        recipes_count = mongo.db.recipes.count_documents({})
-    return {
-        "count": recipes_count,
-    }
-
-
-# @app.route("/recipes/count/search")
-def search_recipes_count():
     """GET the total count of queried recipes."""
     query = request.args.get("query", "")
     search_dict = {}
-    # if cookbook_key is not None:
-    # search_dict["cookbook_key"] = cookbook_key
     if query:
         search_dict["$text"] = {"$search": query}
     with current_app.app_context():
@@ -55,9 +39,7 @@ def get_n_random_recipes(count):
     """
     # cookbook_key = request.args.get("cookbook", None)
     # query = request.args.get("query", "")
-    current_user_id = get_jwt_identity()
     search_dict = {"$sample": {"size": int(count)}}
-    print(f"current_user_id: {current_user_id}")
     with current_app.app_context():
         mongo = PyMongo(current_app)
         cursor = mongo.db.recipes.aggregate([search_dict])
@@ -67,63 +49,47 @@ def get_n_random_recipes(count):
             del recipe["instructions"]
         if "note" in recipe:
             del recipe["note"]
-    return {"recipes": recipes}
+    current_user_id = get_jwt_identity()
+    if current_user_id is None:
+        return {"recipes": recipes}
 
-
-# @app.route("/recipes/search")
-def search_recipes():
-    """
-    GET Search for recipes.
-
-    The results are paginated using the `page` parameter.
-    """
-    page = int(request.args.get("page", 1))
-    per_page = 30  # A const value.
-    cookbook_key = request.args.get("cookbook", None)
-    query = request.args.get("query", "")
-
-    # For pagination, it's necessary to sort by name,
-    # then skip the number of docs that earlier pages would have displayed,
-    # and then to limit to the fixed page size, ``per_page``.
     with current_app.app_context():
         mongo = PyMongo(current_app)
-        search_dict = {}
-        # if cookbook_key is not None:
-        # search_dict["cookbook_key"] = cookbook_key
-        if query:
-            search_dict["$text"] = {"$search": query}
-        cursor = (
-            mongo.db.recipes.find(search_dict)
-            .sort("key")
-            .skip(per_page * (page - 1))
-            .limit(per_page)
+        ids = [ObjectId(recipe["_id"]) for recipe in recipes]
+        print(ids)
+        search_agg = []
+        search_agg.append({"$match": {"_id": ObjectId(current_user_id)}})
+        search_agg.append({"$unwind": "$recipes"})
+        # search_agg.append({"recipes": {"$elemMatch": {"recipe_id": ids}}})
+        search_agg.append({"$group": {"_id": "$_id", "recipes": {"$push": "$recipes"}}})
+        search_agg.append(
+            {
+                "$project": {
+                    "recipes": {
+                        "$filter": {
+                            "input": "$recipes",
+                            "as": "recipe",
+                            "cond": {"$in": ["$$recipe.recipe_id", ids]},
+                        }
+                    }
+                }
+            }
         )
-        recipes_count = mongo.db.recipes.count_documents(search_dict)
-    links = {
-        "self": {"href": url_for(".search_recipes", page=page, _external=True)},
-        "last": {
-            "href": url_for(
-                ".search_recipes", page=(recipes_count // per_page) + 1, _external=True
-            )
-        },
-    }
-    # Add a 'prev' link if it's not on the first page:
-    if page > 1:
-        links["prev"] = {
-            "href": url_for(".list_recipes", page=page - 1, _external=True)
-        }
-    # Add a 'next' link if it's not on the last page:
-    if page - 1 < recipes_count // per_page:
-        links["next"] = {
-            "href": url_for(".list_recipes", page=page + 1, _external=True)
-        }
-    return {
-        "recipes": [Recipe(**doc).to_json() for doc in cursor],
-        "_links": links,
-    }
+        cursor = mongo.db.users.aggregate(search_agg)
+        user_recipe_map = {}
+        for doc in cursor:
+            for raw in doc.get("recipes", []):
+                raw["recipe_id"] = ObjectId(raw["recipe_id"])
+                user_recipe = UserRecipe(**raw)
+                user_recipe_map[str(user_recipe.recipe_id)] = user_recipe
+        for i in range(len(recipes)):
+            if recipes[i]["_id"] in user_recipe_map:
+                recipes[i]["user_recipe"] = user_recipe_map[recipes[i]["_id"]].to_json()
+        return {"recipes": recipes}
 
 
-# @app.route("/recipes/")
+# @app.route("/api/recipes/")
+@jwt_required(optional=True)
 def list_recipes():
     """
     GET a list of recipes.
@@ -132,31 +98,27 @@ def list_recipes():
     """
     page = int(request.args.get("page", 1))
     per_page = 30  # A const value.
-    cookbook_key = request.args.get("cookbook", None)
+    cookbook_key = request.args.get("cookbook", "")
+    query = request.args.get("query", "")
+    user_status = request.args.get("status", "")
 
     # For pagination, it's necessary to sort by name,
     # then skip the number of docs that earlier pages would have displayed,
     # and then to limit to the fixed page size, ``per_page``.
     with current_app.app_context():
         mongo = PyMongo(current_app)
-        if cookbook_key is not None:
-            cursor = (
-                mongo.db.recipes.find({"cookbook_key": cookbook_key})
-                .sort("key")
-                .skip(per_page * (page - 1))
-                .limit(per_page)
-            )
-            recipes_count = mongo.db.recipes.count_documents(
-                {"cookbook_key": cookbook_key}
-            )
-        else:
-            cursor = (
-                mongo.db.recipes.find()
-                .sort("key")
-                .skip(per_page * (page - 1))
-                .limit(per_page)
-            )
-            recipes_count = mongo.db.recipes.count_documents({})
+        search_dict = {}
+        if query:
+            search_dict["$text"] = {"$search": query}
+        if cookbook_key:
+            search_dict["cookbook_key"] = cookbook_key
+        cursor = (
+            mongo.db.recipes.find(search_dict)
+            .sort("key")
+            .skip(per_page * (page - 1))
+            .limit(per_page)
+        )
+        recipes_count = mongo.db.recipes.count_documents(search_dict)
     links = {
         "self": {"href": url_for(".list_recipes", page=page, _external=True)},
         "last": {
@@ -175,8 +137,52 @@ def list_recipes():
         links["next"] = {
             "href": url_for(".list_recipes", page=page + 1, _external=True)
         }
+    recipes = [Recipe(**doc).to_json() for doc in cursor]
+    current_user_id = get_jwt_identity()
+    if current_user_id is not None:
+        with current_app.app_context():
+            mongo = PyMongo(current_app)
+            ids = [recipe["_id"] for recipe in recipes]
+            search_agg = []
+            search_agg.append({"$match": {"_id": ObjectId(current_user_id)}})
+            search_agg.append({"$unwind": "$recipes"})
+            if user_status:
+                search_agg.append({"recipes": {"$elemMatch": {"status": user_status}}})
+            search_agg.append(
+                {"$group": {"_id": "$_id", "recipes": {"$push": "$recipes"}}}
+            )
+            cursor = mongo.db.users.aggregate(search_agg)
+            user_recipe_map = {}
+            for doc in cursor:
+                for raw in doc.get("recipes", []):
+                    raw["recipe_id"] = ObjectId(raw["recipe_id"])
+                    user_recipe = UserRecipe(**raw)
+                    user_recipe_map[str(user_recipe.recipe_id)] = user_recipe
+            for i in range(len(recipes)):
+                if recipes[i]["_id"] in user_recipe_map:
+                    recipes[i]["user_recipe"] = user_recipe_map[
+                        recipes[i]["_id"]
+                    ].to_json()
+
+    for recipe in recipes:
+        del recipe["instructions"]
+        if "note" in recipe:
+            del recipe["note"]
+    if user_status == "cooked!":
+        recipes = [
+            recipe
+            for recipe in recipes
+            if "user_recipe" in recipe and recipe["user_recipe"]["status"] == "cooked!"
+        ]
+    elif user_status == "uncooked":
+        recipes = [
+            recipe
+            for recipe in recipes
+            if "user_recipe" not in recipe
+            or recipe["user_recipe"]["status"] == "uncooked"
+        ]
     return {
-        "recipes": [Recipe(**doc).to_json() for doc in cursor],
+        "recipes": recipes,
         "_links": links,
     }
 

@@ -44,40 +44,33 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  // Configure session to use JWT
-  session: {
-    strategy: "jwt",
-    maxAge: 60 * 60 * 24 * 30, // 1 Month
-  },
   // Configure JWT callbacks
   callbacks: {
     async jwt({ token, user }) {
       // Initial sign in
       if (user) {
         token.accessToken = user.access_token;
-        token.id = user.id; // Assuming user object has an id field
+        token._id = user._id; // Assuming user object has an id field
         if (user.email) {
           token.email = user.email;
         }
-        // Add other user fields as needed
       }
       return token;
     },
     async session({ session, token }) {
       // Include accessToken in the session
       session.accessToken = token.accessToken;
-      if (token.id) {
-        session.user.id = token.id;
+      if (token._id) {
+        session.user._id = token._id;
       }
       if (token.email) {
         session.user.email = token.email;
       }
-      // Add other user fields as needed
       return session;
     },
-    async redirect({ url, baseUrl }) {
+    async redirect({ baseUrl }) {
       // Customize redirection after sign in/sign out if needed
-      console.debug(`url: ${url} baseUrl: ${baseUrl}`);
+      // console.debug(`url: ${url} baseUrl: ${baseUrl}`);
       return baseUrl;
     },
   },

@@ -4,6 +4,11 @@ export const authConfig = {
   pages: {
     signIn: "/login",
   },
+  // Configure session to use JWT
+  session: {
+    strategy: "jwt",
+    maxAge: 60 * 60 * 24 * 30, // 1 Month
+  },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
