@@ -4,7 +4,7 @@ import {
   ViewRecipe,
 } from "@/app/ui/recipes/buttons";
 import { fetchFilteredRecipes } from "@/app/lib/data";
-import { Recipe } from "@/app/lib/definitions";
+import { Cookbook, Recipe } from "@/app/lib/definitions";
 import RecipeStatus from "./status";
 import { APIAuthError } from "@/app/lib/errors";
 
@@ -12,10 +12,12 @@ export default async function RecipesTable({
   query,
   currentPage,
   status,
+  cookbooks_map,
 }: {
   query: string;
   currentPage: number;
   status: "" | "cooked!" | "uncooked";
+  cookbooks_map: { [key: string]: Cookbook };
 }) {
   let recipes: Recipe[] = [];
   try {
@@ -43,8 +45,13 @@ export default async function RecipesTable({
                     <div className="mb-2 justify-center items-center">
                       <p>{recipe.name_of_dish}</p>
                     </div>
+                    <p>
+                      {cookbooks_map[recipe.cookbook_key].author}
+                      {" - "}
+                      {cookbooks_map[recipe.cookbook_key].name}
+                    </p>
                     <p className="text-sm text-gray-500">
-                      Page Number: {recipe.page_number}
+                      Page: {recipe.page_number}
                     </p>
                   </div>
                 </div>
@@ -71,6 +78,9 @@ export default async function RecipesTable({
                   Cookbook
                 </th>
                 <th scope="col" className="px-3 py-5 font-medium">
+                  Page
+                </th>
+                <th scope="col" className="px-3 py-5 font-medium">
                   Status
                 </th>
                 <th scope="col" className="relative py-3 pl-6 pr-3">
@@ -90,10 +100,15 @@ export default async function RecipesTable({
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
+                    <p>{cookbooks_map[recipe.cookbook_key].name}</p>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3">
                     {recipe.page_number}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
-                    <RecipeStatus status={"uncooked"} />
+                    <RecipeStatus
+                      status={recipe.user_recipe?.status || "uncooked"}
+                    />
                   </td>
                   <td className="whitespace-nowrap py-3 pl-6 pr-3">
                     <div className="flex justify-end gap-3">

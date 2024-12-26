@@ -146,8 +146,6 @@ def list_recipes():
             search_agg = []
             search_agg.append({"$match": {"_id": ObjectId(current_user_id)}})
             search_agg.append({"$unwind": "$recipes"})
-            if user_status:
-                search_agg.append({"recipes": {"$elemMatch": {"status": user_status}}})
             search_agg.append(
                 {"$group": {"_id": "$_id", "recipes": {"$push": "$recipes"}}}
             )
